@@ -1,0 +1,64 @@
+{
+  "name": "NebulaX",
+  "description": "原创、轻量、无域名绑定的 Xboard 用户端主题",
+  "version": "1.0.0",
+  "images": "",
+  "configs": [
+    {
+      "label": "品牌名称",
+      "placeholder": "例如：Tweak Network",
+      "field_name": "brand_name",
+      "field_type": "input",
+      "default_value": "NebulaX"
+    },
+    {
+      "label": "品牌标语",
+      "placeholder": "显示在登录页和仪表盘顶部",
+      "field_name": "tagline",
+      "field_type": "input",
+      "default_value": "让连接简单、稳定、清晰"
+    },
+    {
+      "label": "主题色",
+      "placeholder": "请输入十六进制颜色，例如 #6d5dfc",
+      "field_name": "primary_color",
+      "field_type": "input",
+      "default_value": "#6d5dfc"
+    },
+    {
+      "label": "Logo 地址",
+      "placeholder": "留空时显示主题自带图形标识",
+      "field_name": "logo_url",
+      "field_type": "input",
+      "default_value": ""
+    },
+    {
+      "label": "首页公告",
+      "placeholder": "留空时使用后台公告",
+      "field_name": "announcement",
+      "field_type": "textarea",
+      "default_value": ""
+    },
+    {
+      "label": "客服地址",
+      "placeholder": "例如：https://t.me/your_support",
+      "field_name": "support_url",
+      "field_type": "input",
+      "default_value": ""
+    },
+    {
+      "label": "页脚文字",
+      "placeholder": "显示在登录页底部",
+      "field_name": "footer_text",
+      "field_type": "input",
+      "default_value": "Powered by Xboard"
+    },
+    {
+      "label": "自定义页脚 HTML",
+      "placeholder": "可加入客服组件或统计代码",
+      "field_name": "custom_html",
+      "field_type": "textarea",
+      "default_value": ""
+    }
+  ]
+}
