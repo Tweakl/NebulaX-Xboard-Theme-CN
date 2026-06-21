@@ -12,6 +12,7 @@
   const state = {
     auth: localStorage.getItem(storageKey) || '',
     guest: {}, user: null, subscribe: null, plans: [], orders: [], notices: [],
+    docs: [], invite: null, nodes: [], tickets: [], traffic: [],
     loading: false, captchaToken: '', renderId: 0
   };
 
@@ -59,11 +60,25 @@
     })[char]);
   }
 
+  function safeHtml(value) {
+    const template = document.createElement('template');
+    template.innerHTML = String(value || '');
+    template.content.querySelectorAll('script,style,iframe,object,embed,form').forEach(node => node.remove());
+    template.content.querySelectorAll('*').forEach(node => [...node.attributes].forEach(attr => {
+      if (/^on/i.test(attr.name) || ((attr.name === 'href' || attr.name === 'src') && /^\s*javascript:/i.test(attr.value))) node.removeAttribute(attr.name);
+    }));
+    return template.innerHTML;
+  }
+
   function icon(name) {
     const paths = {
       dashboard: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
       plans: '<path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2"/>',
       orders: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/>',
+      docs: '<path d="M4 5a3 3 0 0 1 3-3h12v17H7a3 3 0 0 0-3 3V5z"/><path d="M7 2v17M9 7h7M9 11h6"/>',
+      invite: '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 7v6M14 10h6"/>',
+      nodes: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+      ticket: '<path d="M4 4h16v13H8l-4 4V4z"/><path d="M8 9h8M8 13h5"/>',
       user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
       moon: '<path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5 8.5 8.5 0 1 0 20.5 14.3z"/>',
       sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>',
@@ -123,6 +138,13 @@
       { id: 2, name: '星云畅享', transfer_enable: 500, speed_limit: null, device_limit: 8, month_price: 2600, quarter_price: 7200, year_price: 23800, tags: ['热门', '高速'], content: '全速线路与充足流量', show: true, sell: true },
       { id: 3, name: '无限引力', transfer_enable: 1200, speed_limit: null, device_limit: null, month_price: 4800, half_year_price: 25800, year_price: 44800, tags: ['大流量'], content: '为多设备与重度使用准备', show: true, sell: true }
     ];
+    const docs = [
+      { id: 1, category: '快速开始', title: '如何开始使用', body: '<h2>三步完成连接</h2><p>购买订阅后复制订阅链接，导入客户端并选择节点即可。</p><ol><li>购买适合的套餐</li><li>复制仪表盘中的订阅链接</li><li>导入客户端并更新订阅</li></ol>', updated_at: now },
+      { id: 2, category: '常见问题', title: '订阅无法更新怎么办', body: '<p>请先确认套餐未到期，再尝试切换网络并重新更新订阅。</p>', updated_at: now - 86400 },
+      { id: 3, category: '客户端', title: '设备与客户端说明', body: '<p>请使用服务商推荐的客户端，并避免公开分享订阅链接。</p>', updated_at: now - 86400 * 3 }
+    ];
+    const tickets = [{ id: 12, level: 1, reply_status: 1, status: 0, subject: '客户端连接问题', created_at: now - 7200, updated_at: now - 1800 }];
+    const queryId = new URLSearchParams(path.split('?')[1] || '').get('id');
     const data = path.includes('/guest/comm/config') ? { app_description: '一个清爽、快速的网络服务中心', is_invite_force: 0, is_email_verify: 0, is_captcha: 0 }
       : path.includes('/auth/login') || path.includes('/auth/register') ? { auth_data: 'Bearer preview-token', token: 'preview' }
       : path.includes('/user/info') ? { email: 'hello@nebulax.dev', balance: 2680, commission_balance: 0, expired_at: now + 86400 * 126, created_at: now - 86400 * 93, plan_id: 2 }
@@ -133,6 +155,14 @@
       : path.includes('/order/save') ? 'PREVIEW-ORDER-001'
       : path.includes('/getPaymentMethod') ? [{ id: 1, name: '演示支付', payment: 'demo' }]
       : path.includes('/order/checkout') ? { type: -1, data: true }
+      : path.includes('/knowledge/fetch') ? (queryId ? docs.find(item => String(item.id) === queryId) : Object.values(docs.reduce((groups, item) => { (groups[item.category] ||= []).push(item); return groups; }, {})))
+      : path.includes('/invite/fetch') ? { codes: [{ code: 'NEBULA8X', pv: 4, status: 0, created_at: now - 86400 * 12 }], stat: [8, 3680, 1200, 10, 2480] }
+      : path.includes('/invite/details') ? { data: [{ id: 1, commission_amount: 1280, created_at: now - 86400 * 2 }], total: 1 }
+      : path.includes('/invite/save') ? true
+      : path.includes('/server/fetch') ? [{ id: 1, type: 'shadowsocks', name: '香港 · 星港', rate: 1, tags: ['低延迟'], is_online: true, last_check_at: now }, { id: 2, type: 'vless', name: '日本 · 东京', rate: 1.2, tags: ['流媒体'], is_online: true, last_check_at: now }, { id: 3, type: 'trojan', name: '美国 · 洛杉矶', rate: 1.5, tags: ['大带宽'], is_online: false, last_check_at: now - 600 }]
+      : path.includes('/ticket/fetch') ? (queryId ? Object.assign({}, tickets[0], { message: [{ id: 1, is_me: true, message: '导入订阅后无法连接，请协助检查。', created_at: now - 7200 }, { id: 2, is_me: false, message: '您好，请更新订阅后重新测试。', created_at: now - 1800 }] }) : tickets)
+      : path.includes('/ticket/save') || path.includes('/ticket/reply') || path.includes('/ticket/close') ? true
+      : path.includes('/stat/getTrafficLog') ? [{ d: 3.4 * 1024 ** 3, u: .8 * 1024 ** 3, record_at: now - 86400 * 2, server_rate: 1 }, { d: 6.2 * 1024 ** 3, u: 1.1 * 1024 ** 3, record_at: now - 86400, server_rate: 1.2 }, { d: 2.8 * 1024 ** 3, u: .5 * 1024 ** 3, record_at: now, server_rate: 1 }]
       : true;
     return new Promise(resolve => setTimeout(() => resolve(data), 180));
   }
@@ -182,12 +212,18 @@
       <aside class="sidebar">
         ${brand()}
         <nav class="nav" aria-label="主导航">
-          <p class="nav-label">Workspace</p>
           ${nav('dashboard', '仪表盘', 'dashboard')}
-          ${nav('plans', '订阅套餐', 'plans')}
+          ${nav('docs', '使用文档', 'docs')}
+          <p class="nav-label">财务</p>
           ${nav('orders', '我的订单', 'orders')}
-          <p class="nav-label">Account</p>
-          ${nav('account', '账户设置', 'user')}
+          ${nav('invites', '我的邀请', 'invite')}
+          <p class="nav-label">订阅</p>
+          ${nav('plans', '购买订阅', 'plans')}
+          ${nav('nodes', '节点状态', 'nodes')}
+          <p class="nav-label">用户</p>
+          ${nav('account', '个人中心', 'user')}
+          ${nav('tickets', '我的工单', 'ticket')}
+          ${nav('traffic', '流量明细', 'chart')}
         </nav>
         <div class="sidebar-bottom">
           ${config.supportUrl ? `<div class="support-card"><b>需要一点帮助？</b><p>遇到连接或订阅问题，可以随时联系我们。</p><a class="btn btn-secondary btn-sm" href="${e(config.supportUrl)}" target="_blank" rel="noopener">${icon('support')} 联系客服</a></div>` : ''}
@@ -207,7 +243,7 @@
         <div class="content">${content}</div>
       </main>
       <nav class="mobile-nav" aria-label="移动端导航">
-        ${nav('dashboard', '首页', 'dashboard')}${nav('plans', '套餐', 'plans')}${nav('orders', '订单', 'orders')}${nav('account', '我的', 'user')}
+        ${nav('dashboard', '首页', 'dashboard')}${nav('plans', '订阅', 'plans')}${nav('docs', '文档', 'docs')}${nav('tickets', '工单', 'ticket')}${nav('account', '我的', 'user')}
       </nav>
     </div>`;
   }
@@ -331,14 +367,14 @@
   }
 
   async function renderPlans(id) {
-    app.innerHTML = shell(`${pageHead('Plans', '选择适合你的方案', '所有价格与流量都清楚列出，没有藏起来的小字。')}<div class="plan-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`, '订阅套餐');
+    app.innerHTML = shell(`${pageHead('Plans', '选择适合你的方案', '所有价格与流量都清楚列出，没有藏起来的小字。')}<div class="plan-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`, '购买订阅');
     try {
       const plans = await api(state.auth ? '/user/plan/fetch' : '/guest/plan/fetch');
       if (id !== state.renderId) return;
       state.plans = (Array.isArray(plans) ? plans : []).filter(plan => plan.show !== false);
       const cards = state.plans.map((plan, index) => planCard(plan, index === 1)).join('');
       const content = `${pageHead('Plans', '选择适合你的方案', '按需求选择周期，随时可以在账户中查看订单。')}<div class="plan-grid">${cards || empty('暂时没有可售套餐', '管理员还没有发布订阅套餐。')}</div>`;
-      app.innerHTML = shell(content, '订阅套餐');
+      app.innerHTML = shell(content, '购买订阅');
     } catch (error) { renderError(error); }
   }
 
@@ -370,16 +406,83 @@
     } catch (error) { renderError(error); }
   }
 
+  async function renderDocs(id) {
+    app.innerHTML = shell(`${pageHead('Knowledge', '使用文档', '安装、连接和常见问题说明。')}<div class="grid grid-2"><div class="skeleton"></div><div class="skeleton"></div></div>`, '使用文档');
+    try {
+      const result = await api('/user/knowledge/fetch?language=zh-CN');
+      if (id !== state.renderId) return;
+      const groups = Array.isArray(result) ? result : Object.values(result || {});
+      state.docs = groups.flatMap(group => Array.isArray(group) ? group : [group]).filter(Boolean);
+      const byCategory = state.docs.reduce((all, article) => { (all[article.category || '使用指南'] ||= []).push(article); return all; }, {});
+      const sections = Object.entries(byCategory).map(([category, articles]) => `<section class="card card-pad doc-category"><div class="card-title"><div><h2>${e(category)}</h2><p>${articles.length} 篇文档</p></div>${icon('docs')}</div><div class="doc-list">${articles.map(article => `<button class="doc-link" data-action="open-doc" data-id="${e(article.id)}"><span><b>${e(article.title)}</b><small>更新于 ${date(article.updated_at)}</small></span>${icon('arrow')}</button>`).join('')}</div></section>`).join('');
+      app.innerHTML = shell(`${pageHead('Knowledge', '使用文档', '从快速入门到常见问题，答案都整理在这里。')}<div class="grid grid-2">${sections || empty('还没有文档', '管理员暂未发布使用说明。')}</div>`, '使用文档');
+    } catch (error) { renderError(error); }
+  }
+
+  async function renderInvites(id) {
+    app.innerHTML = shell(`${pageHead('Referral', '我的邀请', '查看邀请码和返佣统计。')}<div class="grid grid-4"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`, '我的邀请');
+    try {
+      const invite = await api('/user/invite/fetch');
+      if (id !== state.renderId) return;
+      state.invite = invite || { codes: [], stat: [] };
+      const stat = state.invite.stat || [];
+      const codes = Array.isArray(state.invite.codes) ? state.invite.codes : [];
+      const rows = codes.map(item => { const link = `${location.origin}/#/register?code=${encodeURIComponent(item.code)}`; return `<tr><td><strong>${e(item.code)}</strong></td><td>${e(item.pv || 0)}</td><td>${date(item.created_at)}</td><td><button class="btn btn-secondary btn-sm" data-action="copy-invite" data-link="${e(link)}">${icon('copy')} 复制链接</button></td></tr>`; }).join('');
+      const content = `${pageHead('Referral', '我的邀请', '分享邀请码，清楚查看邀请人数与返佣。', '<button class="btn btn-primary" data-action="generate-invite">生成邀请码</button>')}
+        <div class="grid grid-4"><div class="card stat-card"><span class="stat-icon">${icon('invite')}</span><strong>${e(stat[0] || 0)}</strong><span>已注册用户</span></div><div class="card stat-card"><span class="stat-icon">${icon('wallet')}</span><strong>${money(stat[1])}</strong><span>有效佣金</span></div><div class="card stat-card"><span class="stat-icon">${icon('calendar')}</span><strong>${money(stat[2])}</strong><span>待确认佣金</span></div><div class="card stat-card"><span class="stat-icon">${icon('chart')}</span><strong>${e(stat[3] || 0)}%</strong><span>返佣比例</span></div></div>
+        <section class="card" style="margin-top:20px">${rows ? `<div class="table-wrap"><table class="table"><thead><tr><th>邀请码</th><th>访问量</th><th>创建时间</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>` : empty('还没有邀请码', '点击右上角生成第一个邀请码。')}</section>`;
+      app.innerHTML = shell(content, '我的邀请');
+    } catch (error) { renderError(error); }
+  }
+
+  async function renderNodes(id) {
+    app.innerHTML = shell(`${pageHead('Network', '节点状态', '实时查看线路可用状态。')}<div class="node-grid"><div class="skeleton"></div><div class="skeleton"></div></div>`, '节点状态');
+    try {
+      const result = await api('/user/server/fetch');
+      if (id !== state.renderId) return;
+      state.nodes = Array.isArray(result) ? result : (result?.data || []);
+      const online = state.nodes.filter(node => Boolean(node.is_online)).length;
+      const cards = state.nodes.map(node => `<article class="card node-card"><div class="node-head"><span class="node-dot ${node.is_online ? 'online' : ''}"></span><div><h2>${e(node.name)}</h2><p>${e(String(node.type || '').toUpperCase())}</p></div><span class="status ${node.is_online ? 'success' : 'danger'}">${node.is_online ? '在线' : '维护中'}</span></div><div class="info-list"><div class="info-item"><span>流量倍率</span><b>${e(node.rate || 1)}×</b></div><div class="info-item"><span>节点标签</span><b>${(node.tags || []).map(tag => e(tag)).join(' · ') || '标准线路'}</b></div><div class="info-item"><span>最近检测</span><b>${date(node.last_check_at)}</b></div></div></article>`).join('');
+      app.innerHTML = shell(`${pageHead('Network', '节点状态', `${online} / ${state.nodes.length} 个节点在线，状态会随服务端检测更新。`)}<div class="node-grid">${cards || empty('暂无可用节点', '当前套餐没有可展示的节点。')}</div>`, '节点状态');
+    } catch (error) { renderError(error); }
+  }
+
+  async function renderTickets(id) {
+    app.innerHTML = shell(`${pageHead('Support', '我的工单', '查看与客服的沟通记录。')}<div class="card skeleton"></div>`, '我的工单');
+    try {
+      const tickets = await api('/user/ticket/fetch');
+      if (id !== state.renderId) return;
+      state.tickets = Array.isArray(tickets) ? tickets : [];
+      const rows = state.tickets.map(item => `<tr><td><button class="table-link" data-action="open-ticket" data-id="${e(item.id)}"><strong>${e(item.subject)}</strong><br><small>#${e(item.id)}</small></button></td><td><span class="status ${Number(item.status) === 0 ? 'success' : 'warning'}">${Number(item.status) === 0 ? '处理中' : '已关闭'}</span></td><td>${Number(item.reply_status) === 1 ? '有新回复' : '等待回复'}</td><td>${date(item.updated_at || item.created_at)}</td></tr>`).join('');
+      app.innerHTML = shell(`${pageHead('Support', '我的工单', '提交问题、查看回复，解决过程不会丢失。', '<button class="btn btn-primary" data-action="new-ticket">新建工单</button>')}<section class="card">${rows ? `<div class="table-wrap"><table class="table"><thead><tr><th>主题</th><th>状态</th><th>回复</th><th>更新时间</th></tr></thead><tbody>${rows}</tbody></table></div>` : empty('还没有工单', '遇到问题时，可以创建一张新工单。')}</section>`, '我的工单');
+    } catch (error) { renderError(error); }
+  }
+
+  async function renderTraffic(id) {
+    app.innerHTML = shell(`${pageHead('Usage', '流量明细', '查看每日上传和下载用量。')}<div class="card skeleton"></div>`, '流量明细');
+    try {
+      const traffic = await api('/user/stat/getTrafficLog');
+      if (id !== state.renderId) return;
+      state.traffic = Array.isArray(traffic) ? traffic : (traffic?.data || []);
+      const max = Math.max(1, ...state.traffic.map(item => Number(item.u || 0) + Number(item.d || 0)));
+      const totalUp = state.traffic.reduce((sum, item) => sum + Number(item.u || 0), 0);
+      const totalDown = state.traffic.reduce((sum, item) => sum + Number(item.d || 0), 0);
+      const bars = state.traffic.map(item => { const total = Number(item.u || 0) + Number(item.d || 0); return `<div class="traffic-row"><span>${date(item.record_at)}</span><div class="traffic-track"><i style="width:${Math.max(3, total / max * 100)}%"></i></div><b>${bytes(total)}</b><small>上 ${bytes(item.u)} · 下 ${bytes(item.d)} · ${e(item.server_rate || 1)}×</small></div>`; }).join('');
+      const content = `${pageHead('Usage', '流量明细', '统计记录由服务端生成，倍率已经单独标注。')}<div class="grid grid-3"><div class="card stat-card"><span class="stat-icon">${icon('chart')}</span><strong>${bytes(totalUp + totalDown)}</strong><span>记录总用量</span></div><div class="card stat-card"><span class="stat-icon">${icon('arrow')}</span><strong>${bytes(totalDown)}</strong><span>下载流量</span></div><div class="card stat-card"><span class="stat-icon">${icon('refresh')}</span><strong>${bytes(totalUp)}</strong><span>上传流量</span></div></div><section class="card card-pad traffic-history" style="margin-top:20px">${bars || empty('暂无流量记录', '开始使用节点后，明细会显示在这里。')}</section>`;
+      app.innerHTML = shell(content, '流量明细');
+    } catch (error) { renderError(error); }
+  }
+
   async function renderAccount(id) {
-    app.innerHTML = shell(`${pageHead('Account', '账户设置', '管理个人信息与安全选项。')}<div class="grid grid-2"><div class="skeleton"></div><div class="skeleton"></div></div>`, '账户设置');
+    app.innerHTML = shell(`${pageHead('Account', '个人中心', '管理个人信息与安全选项。')}<div class="grid grid-2"><div class="skeleton"></div><div class="skeleton"></div></div>`, '个人中心');
     try {
       const user = state.user || await api('/user/info');
       if (id !== state.renderId) return;
       state.user = user;
-      const content = `${pageHead('Account', '账户设置', '你的账户资料与常用操作。')}
+      const content = `${pageHead('Account', '个人中心', '你的账户资料与常用操作。')}
         <div class="grid grid-2"><section class="card card-pad"><div class="profile-card"><div class="profile-avatar">${e(initials(user.email))}</div><div><h2>${e(user.email)}</h2><p>加入于 ${date(user.created_at)}</p></div></div><div class="info-list" style="margin-top:22px"><div class="info-item"><span>账户余额</span><b>${money(user.balance)}</b></div><div class="info-item"><span>套餐编号</span><b>${e(user.plan_id || '暂无')}</b></div><div class="info-item"><span>到期时间</span><b>${date(user.expired_at)}</b></div><div class="info-item"><span>账户状态</span><b><span class="status ${user.banned ? 'danger' : 'success'}">${user.banned ? '已停用' : '正常'}</span></b></div></div></section>
-        <section class="card card-pad"><div class="card-title"><div><h2>偏好设置</h2><p>这些设置保存在当前浏览器</p></div></div><div class="info-list"><div class="info-item"><span>界面主题</span><button class="btn btn-secondary btn-sm" data-action="theme">切换深浅色</button></div><div class="info-item"><span>客服支持</span>${config.supportUrl ? `<a class="text-link" href="${e(config.supportUrl)}" target="_blank" rel="noopener">打开客服</a>` : '<b>未配置</b>'}</div><div class="info-item"><span>前端版本</span><b>NebulaX 1.0.0</b></div><div class="info-item"><span>登录状态</span><button class="btn btn-danger btn-sm" data-action="logout">退出登录</button></div></div></section></div>`;
-      app.innerHTML = shell(content, '账户设置');
+        <section class="card card-pad"><div class="card-title"><div><h2>偏好设置</h2><p>这些设置保存在当前浏览器</p></div></div><div class="info-list"><div class="info-item"><span>界面主题</span><button class="btn btn-secondary btn-sm" data-action="theme">切换深浅色</button></div><div class="info-item"><span>客服支持</span>${config.supportUrl ? `<a class="text-link" href="${e(config.supportUrl)}" target="_blank" rel="noopener">打开客服</a>` : '<b>未配置</b>'}</div><div class="info-item"><span>前端版本</span><b>NebulaX 1.1.0</b></div><div class="info-item"><span>登录状态</span><button class="btn btn-danger btn-sm" data-action="logout">退出登录</button></div></div></section></div>`;
+      app.innerHTML = shell(content, '个人中心');
     } catch (error) { renderError(error); }
   }
 
@@ -387,6 +490,50 @@
   function renderError(error) {
     const content = `${pageHead('Connection', '页面暂时无法载入', '服务器返回了一个错误。')}<section class="card empty">${icon('info')}<h3>${e(error.message || '加载失败')}</h3><p>请检查网络或稍后再试。</p><button class="btn btn-primary" data-action="reload" style="margin-top:16px">${icon('refresh')} 重新加载</button></section>`;
     app.innerHTML = state.auth ? shell(content, '连接异常') : app.innerHTML;
+  }
+
+  async function openDoc(articleId) {
+    const dialog = document.getElementById('global-dialog');
+    dialog.innerHTML = `<div class="dialog-head"><h3>正在载入文档…</h3><button class="icon-btn" data-action="close-dialog">${icon('close')}</button></div>`;
+    if (!dialog.open) dialog.showModal();
+    try {
+      const article = state.docs.find(item => String(item.id) === String(articleId)) || await api(`/user/knowledge/fetch?id=${encodeURIComponent(articleId)}&language=zh-CN`);
+      dialog.innerHTML = `<div class="dialog-head"><div><h3>${e(article.title)}</h3><small>${e(article.category || '使用文档')}</small></div><button class="icon-btn" data-action="close-dialog">${icon('close')}</button></div><article class="dialog-body rich-text">${safeHtml(article.body || '<p>暂无内容</p>')}</article>`;
+    } catch (error) { dialog.close(); toast(error.message, 'error'); }
+  }
+
+  function openTicketCreate() {
+    const dialog = document.getElementById('global-dialog');
+    dialog.innerHTML = `<div class="dialog-head"><h3>新建工单</h3><button class="icon-btn" data-action="close-dialog">${icon('close')}</button></div><form class="dialog-body form" id="ticket-create-form"><div class="field"><label for="ticket_subject">主题</label><input class="input" id="ticket_subject" name="subject" required maxlength="120" placeholder="简要描述问题"></div><div class="field"><label for="ticket_level">优先级</label><select class="input" id="ticket_level" name="level"><option value="0">一般</option><option value="1">紧急</option><option value="2">非常紧急</option></select></div><div class="field"><label for="ticket_message">问题详情</label><textarea class="input textarea" id="ticket_message" name="message" required rows="6" placeholder="请写明设备、客户端和错误现象"></textarea></div><div class="dialog-actions"><button class="btn btn-secondary" type="button" data-action="close-dialog">取消</button><button class="btn btn-primary" type="submit">提交工单</button></div></form>`;
+    if (!dialog.open) dialog.showModal();
+  }
+
+  async function openTicket(ticketId) {
+    const dialog = document.getElementById('global-dialog');
+    dialog.innerHTML = `<div class="dialog-head"><h3>正在载入工单…</h3><button class="icon-btn" data-action="close-dialog">${icon('close')}</button></div>`;
+    if (!dialog.open) dialog.showModal();
+    try {
+      const ticket = await api(`/user/ticket/fetch?id=${encodeURIComponent(ticketId)}`);
+      const messages = Array.isArray(ticket.message) ? ticket.message : [];
+      dialog.innerHTML = `<div class="dialog-head"><div><h3>${e(ticket.subject)}</h3><small>工单 #${e(ticket.id)}</small></div><button class="icon-btn" data-action="close-dialog">${icon('close')}</button></div><div class="dialog-body"><div class="ticket-thread">${messages.map(message => `<div class="ticket-message ${message.is_me ? 'me' : ''}"><b>${message.is_me ? '我' : '客服'}</b><p>${e(message.message)}</p><small>${date(message.created_at)}</small></div>`).join('') || '<p class="field-hint">暂无回复内容。</p>'}</div>${Number(ticket.status) === 0 ? `<form class="form" id="ticket-reply-form" data-id="${e(ticket.id)}"><div class="field"><label for="ticket_reply">继续回复</label><textarea class="input textarea" id="ticket_reply" name="message" required rows="4" placeholder="输入回复内容"></textarea></div><div class="dialog-actions"><button class="btn btn-danger" type="button" data-action="close-ticket" data-id="${e(ticket.id)}">关闭工单</button><button class="btn btn-primary" type="submit">发送回复</button></div></form>` : '<p class="field-hint">此工单已关闭。</p>'}</div>`;
+    } catch (error) { dialog.close(); toast(error.message, 'error'); }
+  }
+
+  async function submitTicket(form) {
+    const button = form.querySelector('[type="submit"]'); button.disabled = true;
+    try {
+      const data = Object.fromEntries(new FormData(form).entries()); data.level = Number(data.level || 0);
+      await api('/user/ticket/save', { method: 'POST', body: data });
+      document.getElementById('global-dialog').close(); toast('工单已提交'); render();
+    } catch (error) { toast(error.message, 'error'); button.disabled = false; }
+  }
+
+  async function replyTicket(form) {
+    const button = form.querySelector('[type="submit"]'); button.disabled = true;
+    try {
+      await api('/user/ticket/reply', { method: 'POST', body: { id: form.dataset.id, message: new FormData(form).get('message') } });
+      toast('回复已发送'); openTicket(form.dataset.id);
+    } catch (error) { toast(error.message, 'error'); button.disabled = false; }
   }
 
   function openPurchase(planId) {
@@ -460,13 +607,20 @@
 
   async function render() {
     const id = ++state.renderId;
+    const dialog = document.getElementById('global-dialog');
+    if (dialog?.open) dialog.close();
     let route = routeName();
     if (!state.auth && !['login', 'register'].includes(route)) route = 'login';
     if (state.auth && ['login', 'register'].includes(route)) route = 'dashboard';
     if (route !== routeName()) { go(route); return; }
     if (route === 'login' || route === 'register') return authPage(route);
+    if (route === 'docs') return renderDocs(id);
     if (route === 'plans') return renderPlans(id);
     if (route === 'orders') return renderOrders(id);
+    if (route === 'invites') return renderInvites(id);
+    if (route === 'nodes') return renderNodes(id);
+    if (route === 'tickets') return renderTickets(id);
+    if (route === 'traffic') return renderTraffic(id);
     if (route === 'account') return renderAccount(id);
     return renderDashboard(id);
   }
@@ -482,6 +636,15 @@
       clearAuth(); toast('已安全退出'); go('login');
     } else if (action === 'copy-sub') {
       try { await navigator.clipboard.writeText(state.subscribe?.subscribe_url || ''); toast('订阅链接已复制'); } catch { toast('复制失败，请手动复制', 'error'); }
+    } else if (action === 'copy-invite') {
+      try { await navigator.clipboard.writeText(target.dataset.link || ''); toast('邀请链接已复制'); } catch { toast('复制失败，请手动复制', 'error'); }
+    } else if (action === 'open-doc') openDoc(target.dataset.id);
+    else if (action === 'new-ticket') openTicketCreate();
+    else if (action === 'open-ticket') openTicket(target.dataset.id);
+    else if (action === 'generate-invite') {
+      try { await api('/user/invite/save'); toast('邀请码已生成'); render(); } catch (error) { toast(error.message, 'error'); }
+    } else if (action === 'close-ticket') {
+      try { await api('/user/ticket/close', { method: 'POST', body: { id: target.dataset.id } }); document.getElementById('global-dialog').close(); toast('工单已关闭'); render(); } catch (error) { toast(error.message, 'error'); }
     } else if (action === 'purchase') openPurchase(target.dataset.plan);
     else if (action === 'close-dialog') document.getElementById('global-dialog').close();
     else if (action === 'reload') render();
@@ -493,11 +656,13 @@
 
   document.addEventListener('submit', event => {
     const form = event.target;
-    if (!['auth-form', 'purchase-form', 'payment-form'].includes(form.id)) return;
+    if (!['auth-form', 'purchase-form', 'payment-form', 'ticket-create-form', 'ticket-reply-form'].includes(form.id)) return;
     event.preventDefault();
     if (form.id === 'auth-form') handleAuth(form);
     if (form.id === 'purchase-form') createOrder(form);
     if (form.id === 'payment-form') checkout(form);
+    if (form.id === 'ticket-create-form') submitTicket(form);
+    if (form.id === 'ticket-reply-form') replyTicket(form);
   });
 
   window.addEventListener('hashchange', render);
